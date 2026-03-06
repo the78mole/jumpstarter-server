@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
+FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
 ARG KUBECTL_VERSION=v1.32.0
 ARG HELM_VERSION=v3.17.0
@@ -38,8 +38,9 @@ RUN curl -fsSL https://taskfile.dev/install.sh | \
     sh -s -- -b /usr/local/bin "${TASK_VERSION}"
 
 # Install Jumpstarter CLI
-RUN pip3 install --no-cache-dir --extra-index-url https://pkg.jumpstarter.dev/ "jumpstarter-all==${JUMPSTARTER_VERSION}" || \
-    pip3 install --no-cache-dir --extra-index-url https://pkg.jumpstarter.dev/ jumpstarter-all
+# --break-system-packages is required on Ubuntu 24.04 (PEP 668) and is safe inside a container
+RUN pip3 install --no-cache-dir --break-system-packages --extra-index-url https://pkg.jumpstarter.dev/ "jumpstarter-all==${JUMPSTARTER_VERSION}" || \
+    pip3 install --no-cache-dir --break-system-packages --extra-index-url https://pkg.jumpstarter.dev/ jumpstarter-all
 
 # Enable shell completion
 RUN kubectl completion bash > /etc/bash_completion.d/kubectl \
