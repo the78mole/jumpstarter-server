@@ -1,0 +1,83 @@
+---
+# Integration test workflow: spins up k3d, deploys Jumpstarter, verifies the
+# Controller API is reachable via the CLI / integration test script.
+name: Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  integration-test:
+    name: K3s Cluster + Jumpstarter Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      # ── Checkout ────────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Tool installation ────────────────────────────────────────────────────
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "v1.29.3"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: "v3.14.3"
+
+      - name: Install k3d
+        run: |
+          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | \
+            TAG=v5.6.3 bash
+
+      - name: Install Task runner
+        uses: arduino/setup-task@v1
+        with:
+          version: "3.x"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python test dependencies
+        run: pip install grpcio grpcio-tools requests
+
+      # ── Cluster setup ────────────────────────────────────────────────────────
+      - name: Add Helm repositories
+        run: task helm:repos
+
+      - name: Create k3d cluster
+        run: task cluster:create
+
+      - name: Install cert-manager
+        run: task install:cert-manager
+
+      - name: Install Traefik
+        run: task install:traefik
+
+      - name: Install Jumpstarter controller
+        run: task install:jumpstarter
+
+      - name: Show cluster status
+        run: task status
+
+      # ── Integration tests ────────────────────────────────────────────────────
+      - name: Run integration tests
+        run: python3 scripts/test_integration.py
+
+      # ── Cleanup ──────────────────────────────────────────────────────────────
+      - name: Delete k3d cluster
+        if: always()
+        run: task cluster:delete

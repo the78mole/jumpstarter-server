@@ -1,0 +1,57 @@
+---
+# k3d cluster configuration for Jumpstarter-in-a-Box
+# Reference: https://k3d.io/v5.6.0/usage/configfile/
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+
+metadata:
+  name: jumpstarter
+
+# Single server node with two agent nodes
+servers: 1
+agents: 0
+
+image: rancher/k3s:v1.29.3-k3s1
+
+# Kubeconfig merge settings
+kubeAPI:
+  host: "0.0.0.0"
+  hostIP: "0.0.0.0"
+  hostPort: "6443"
+
+ports:
+  # HTTP for Traefik ingress
+  - port: 8080:80
+    nodeFilters:
+      - loadbalancer
+  # HTTPS / gRPC (HTTP/2) via Traefik ingress
+  - port: 8082:443
+    nodeFilters:
+      - loadbalancer
+  # Jumpstarter router gRPC (direct NodePort, no TLS termination)
+  - port: 8083:8083
+    nodeFilters:
+      - loadbalancer
+
+options:
+  k3s:
+    extraArgs:
+      # Disable the default Traefik v1 so we can install Traefik v2 via Helm
+      - arg: "--disable=traefik"
+        nodeFilters:
+          - server:*
+      # Disable servicelb; we rely on k3d's load balancer
+      - arg: "--disable=servicelb"
+        nodeFilters:
+          - server:*
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true
+
+volumes: []
+
+registries:
+  create:
+    name: jumpstarter-registry
+    host: "0.0.0.0"
+    hostPort: "5111"

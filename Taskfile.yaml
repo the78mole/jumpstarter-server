@@ -1,0 +1,173 @@
+# Taskfile.yaml — Jumpstarter-in-a-Box automation
+# https://taskfile.dev
+version: "3"
+
+vars:
+  CLUSTER_NAME: jumpstarter
+  KUBECONFIG_PATH:
+    sh: echo "${HOME}/.kube/config"
+  NAMESPACE_CONTROLLER: jumpstarter
+  NAMESPACE_CERT_MANAGER: cert-manager
+  NAMESPACE_TRAEFIK: traefik
+  CERT_MANAGER_VERSION: v1.14.4
+  TRAEFIK_CHART_VERSION: "26.1.0"
+  JUMPSTARTER_CHART_REPO: https://charts.jumpstarter.dev
+  JUMPSTARTER_CHART_VERSION: "0.0.1"
+  GRPC_ENDPOINT: "localhost:8082"
+  REGISTRY_PORT: "5111"
+
+tasks:
+  # ─── Primary entry points ────────────────────────────────────────────────────
+
+  setup:
+    desc: "One-click setup: create cluster, install all components"
+    cmds:
+      - task: cluster:create
+      - task: helm:repos
+      - task: install:cert-manager
+      - task: install:traefik
+      - task: install:jumpstarter
+      - task: status
+
+  test:
+    desc: "Run integration tests against the running cluster"
+    cmds:
+      - task: test:integration
+
+  clean:
+    desc: "Tear down the k3d cluster and clean up kubeconfig"
+    cmds:
+      - task: cluster:delete
+
+  # ─── Cluster management ──────────────────────────────────────────────────────
+
+  cluster:create:
+    desc: "Create the k3d cluster using k3d-config.yaml"
+    cmds:
+      - |
+        if k3d cluster list | grep -q "^{{.CLUSTER_NAME}}"; then
+          echo "Cluster '{{.CLUSTER_NAME}}' already exists — skipping creation."
+        else
+          k3d cluster create --config k3d-config.yaml
+        fi
+      - kubectl wait --for=condition=Ready nodes --all --timeout=90s
+
+  cluster:delete:
+    desc: "Delete the k3d cluster"
+    cmds:
+      - k3d cluster delete {{.CLUSTER_NAME}}
+
+  cluster:start:
+    desc: "Start an existing (stopped) k3d cluster"
+    cmds:
+      - k3d cluster start {{.CLUSTER_NAME}}
+
+  cluster:stop:
+    desc: "Stop the k3d cluster without deleting it"
+    cmds:
+      - k3d cluster stop {{.CLUSTER_NAME}}
+
+  # ─── Helm repo management ────────────────────────────────────────────────────
+
+  helm:repos:
+    desc: "Add and update required Helm repositories"
+    cmds:
+      - helm repo add jetstack https://charts.jetstack.io
+      - helm repo add traefik https://helm.traefik.io/traefik
+      - helm repo add jumpstarter {{.JUMPSTARTER_CHART_REPO}} || true
+      - helm repo update
+
+  # ─── Component installation ──────────────────────────────────────────────────
+
+  install:cert-manager:
+    desc: "Install cert-manager with self-signed ClusterIssuer"
+    cmds:
+      - |
+        helm upgrade --install cert-manager jetstack/cert-manager \
+          --namespace {{.NAMESPACE_CERT_MANAGER}} \
+          --create-namespace \
+          --version {{.CERT_MANAGER_VERSION}} \
+          --values helm/cert-manager/values.yaml \
+          --wait --timeout 5m
+      - kubectl wait --namespace {{.NAMESPACE_CERT_MANAGER}} \
+          --for=condition=Ready pods --all --timeout=120s
+      - kubectl apply -f helm/cert-manager/cluster-issuer.yaml
+
+  install:traefik:
+    desc: "Install Traefik v2 ingress controller"
+    cmds:
+      - |
+        helm upgrade --install traefik traefik/traefik \
+          --namespace {{.NAMESPACE_TRAEFIK}} \
+          --create-namespace \
+          --version {{.TRAEFIK_CHART_VERSION}} \
+          --values helm/traefik/values.yaml \
+          --wait --timeout 5m
+
+  install:jumpstarter:
+    desc: "Install Jumpstarter controller and router"
+    cmds:
+      - kubectl create namespace {{.NAMESPACE_CONTROLLER}} --dry-run=client -o yaml | kubectl apply -f -
+      - |
+        if helm repo list | grep -q jumpstarter; then
+          helm upgrade --install jumpstarter jumpstarter/jumpstarter \
+            --namespace {{.NAMESPACE_CONTROLLER}} \
+            --version {{.JUMPSTARTER_CHART_VERSION}} \
+            --values helm/jumpstarter/values.yaml \
+            --wait --timeout 5m
+        else
+          echo "WARNING: Jumpstarter Helm chart repo not available — applying raw manifests instead."
+          task: install:jumpstarter:manifests
+        fi
+
+  install:jumpstarter:manifests:
+    desc: "Apply raw Jumpstarter manifests (fallback when chart repo unavailable)"
+    internal: true
+    cmds:
+      - |
+        kubectl apply -n {{.NAMESPACE_CONTROLLER}} \
+          -f https://github.com/jumpstarter-dev/jumpstarter/releases/latest/download/install.yaml \
+          || echo "Manifest installation failed — check network or chart availability."
+
+  # ─── Status & diagnostics ────────────────────────────────────────────────────
+
+  status:
+    desc: "Show cluster and component status"
+    cmds:
+      - echo "=== Nodes ==="
+      - kubectl get nodes -o wide
+      - echo "=== Pods (all namespaces) ==="
+      - kubectl get pods -A
+      - echo "=== Services ==="
+      - kubectl get svc -A
+      - echo "=== Ingresses ==="
+      - kubectl get ingress -A
+
+  logs:controller:
+    desc: "Tail logs from the Jumpstarter controller pod"
+    cmds:
+      - kubectl logs -n {{.NAMESPACE_CONTROLLER}} -l app.kubernetes.io/name=jumpstarter-controller -f
+
+  logs:router:
+    desc: "Tail logs from the Jumpstarter router pod"
+    cmds:
+      - kubectl logs -n {{.NAMESPACE_CONTROLLER}} -l app.kubernetes.io/name=jumpstarter-router -f
+
+  # ─── Integration tests ───────────────────────────────────────────────────────
+
+  test:integration:
+    desc: "Run Python integration tests"
+    cmds:
+      - python3 -m venv /tmp/jmp-test-venv
+      - /tmp/jmp-test-venv/bin/pip install --quiet grpcio grpcio-tools requests
+      - /tmp/jmp-test-venv/bin/python scripts/test_integration.py
+
+  # ─── Registry helpers ────────────────────────────────────────────────────────
+
+  registry:push:
+    desc: "Tag and push a local image to the k3d registry (usage: task registry:push IMAGE=myimage:tag)"
+    cmds:
+      - docker tag {{.IMAGE}} localhost:{{.REGISTRY_PORT}}/{{.IMAGE}}
+      - docker push localhost:{{.REGISTRY_PORT}}/{{.IMAGE}}
+    requires:
+      vars: [IMAGE]

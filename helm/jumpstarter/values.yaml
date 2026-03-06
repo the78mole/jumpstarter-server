@@ -1,0 +1,72 @@
+# Helm values for Jumpstarter Controller
+# Chart source: https://github.com/jumpstarter-dev/helm-charts
+# Default gRPC port: 8082
+
+controller:
+  image:
+    repository: quay.io/jumpstarter-dev/jumpstarter-controller
+    tag: ""          # Defaults to chart appVersion
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  service:
+    type: ClusterIP
+    grpcPort: 8082
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
+
+router:
+  image:
+    repository: quay.io/jumpstarter-dev/jumpstarter-router
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  service:
+    type: ClusterIP
+    grpcPort: 8083
+
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+
+ingress:
+  enabled: true
+  className: "traefik"
+  annotations:
+    # Enable HTTP/2 (gRPC) passthrough on Traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  hosts:
+    - host: jumpstarter.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            name: jumpstarter-controller
+            port: 8082
+  tls:
+    - secretName: jumpstarter-tls
+      hosts:
+        - jumpstarter.local
+
+# cert-manager ClusterIssuer name used for TLS certificates
+certIssuerName: "selfsigned-issuer"
+
+# OIDC / authentication (set to empty for local dev)
+auth:
+  enabled: false
+  oidcIssuerURL: ""
+  clientID: ""
