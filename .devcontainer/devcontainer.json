@@ -1,0 +1,57 @@
+{
+  "name": "Jumpstarter-in-a-Box",
+  "build": {
+    "context": ".",
+    "dockerfile": "Dockerfile"
+  },
+  // Mount the host Docker socket so k3d can create containers (Docker-outside-of-Docker)
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+  "remoteUser": "vscode",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "version": "latest",
+      "enableNonRootDocker": "true",
+      "moby": "true"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml",
+        "tim-koehler.helm-intellisense",
+        "task.vscode-task"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "vs-kubernetes": {
+          "vs-kubernetes.kubectl-path": "/usr/local/bin/kubectl"
+        }
+      }
+    }
+  },
+  // Run cluster setup automatically after the container starts
+  "postStartCommand": "task setup",
+  "forwardPorts": [
+    8082,
+    8083,
+    6443
+  ],
+  "portsAttributes": {
+    "8082": {
+      "label": "Jumpstarter gRPC",
+      "onAutoForward": "notify"
+    },
+    "8083": {
+      "label": "Jumpstarter Router gRPC",
+      "onAutoForward": "notify"
+    },
+    "6443": {
+      "label": "K3s API Server",
+      "onAutoForward": "silent"
+    }
+  }
+}

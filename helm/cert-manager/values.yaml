@@ -1,0 +1,21 @@
+# Helm values for cert-manager
+# Chart source: https://charts.jetstack.io
+# Install CRDs via the chart (recommended for CI)
+
+installCRDs: true
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: "50m"
+    memory: "64Mi"
+  limits:
+    cpu: "200m"
+    memory: "128Mi"
+
+webhook:
+  replicaCount: 1
+
+cainjector:
+  replicaCount: 1
