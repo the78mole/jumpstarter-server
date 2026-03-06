@@ -38,8 +38,8 @@ RUN curl -fsSL https://taskfile.dev/install.sh | \
     sh -s -- -b /usr/local/bin "${TASK_VERSION}"
 
 # Install Jumpstarter CLI
-RUN pip3 install --no-cache-dir "jumpstarter==${JUMPSTARTER_VERSION}" || \
-    pip3 install --no-cache-dir jumpstarter
+RUN pip3 install --no-cache-dir --extra-index-url https://pkg.jumpstarter.dev/ "jumpstarter-all==${JUMPSTARTER_VERSION}" || \
+    pip3 install --no-cache-dir --extra-index-url https://pkg.jumpstarter.dev/ jumpstarter-all
 
 # Enable shell completion
 RUN kubectl completion bash > /etc/bash_completion.d/kubectl \
