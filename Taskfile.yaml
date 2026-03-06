@@ -89,8 +89,7 @@ tasks:
           --version {{.CERT_MANAGER_VERSION}} \
           --values helm/cert-manager/values.yaml \
           --wait --timeout 5m
-      - kubectl wait --namespace {{.NAMESPACE_CERT_MANAGER}} \
-          --for=condition=Ready pods --all --timeout=120s
+      - kubectl wait --namespace {{.NAMESPACE_CERT_MANAGER}} --for=condition=Ready pods --all --timeout=120s
       - kubectl apply -f helm/cert-manager/cluster-issuer.yaml
 
   install:traefik:
