@@ -1,0 +1,53 @@
+---
+# Release workflow: creates GitHub Releases with automated semantic versioning
+# using conventional commits (paulhatch/semver-release-action).
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    name: Semantic Version Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # required to create releases and push tags
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Full history is required for semver-release-action to count commits
+          fetch-depth: 0
+
+      - name: Determine next semantic version
+        id: semver
+        uses: paulhatch/semantic-version@v5.4.0
+        with:
+          # Branch to calculate version for
+          branch: main
+          # Prefix applied to version tags
+          tag_prefix: "v"
+          # Regex for major version bump (breaking change)
+          major_pattern: "(MAJOR)"
+          # Regex for minor version bump (new feature)
+          minor_pattern: "(MINOR)"
+          # Short version format string
+          version_format: "${major}.${minor}.${patch}"
+          # Bump patch version on every commit that doesn't match major/minor patterns
+          bump_each_commit: true
+          # Only consider conventional commit prefixes that indicate a change
+          bump_each_commit_patch_pattern: "(fix|feat|chore|refactor|perf|ci|build|docs|style|test)"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.semver.outputs.version }}"
+          name: "Release v${{ steps.semver.outputs.version }}"
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

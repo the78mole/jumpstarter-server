@@ -1,0 +1,38 @@
+---
+# Traefik v2 Helm values
+# Chart source: https://helm.traefik.io/traefik
+# Enables gRPC (HTTP/2) ingress on port 8082
+
+globalArguments:
+  - "--global.sendanonymoususage=false"
+
+additionalArguments:
+  # Enable gRPC / HTTP2 support
+  - "--serversTransport.insecureSkipVerify=true"
+
+deployment:
+  replicas: 1
+
+ports:
+  web:
+    port: 8000
+    expose: true
+    exposedPort: 80
+  websecure:
+    port: 8443
+    expose: true
+    exposedPort: 443
+    # Allow HTTP/2 (required for gRPC)
+    http2:
+      maxConcurrentStreams: 250
+    tls:
+      enabled: true
+
+service:
+  type: LoadBalancer
+
+logs:
+  general:
+    level: INFO
+  access:
+    enabled: true
