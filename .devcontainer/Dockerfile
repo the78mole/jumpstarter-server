@@ -1,10 +1,10 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
 
-ARG KUBECTL_VERSION=v1.29.3
-ARG HELM_VERSION=v3.14.3
-ARG K3D_VERSION=v5.6.3
-ARG TASK_VERSION=v3.35.1
-ARG JUMPSTARTER_VERSION=0.0.1a10
+ARG KUBECTL_VERSION=v1.32.0
+ARG HELM_VERSION=v3.17.0
+ARG K3D_VERSION=v5.7.3
+ARG TASK_VERSION=v3.41.0
+ARG JUMPSTARTER_VERSION=0.7.4
 
 # Install core dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
