@@ -22,6 +22,7 @@ tasks:
   setup:
     desc: "One-click setup: create cluster, install all components"
     cmds:
+      - task: docker:wait
       - task: cluster:create
       - task: helm:repos
       - task: install:cert-manager
@@ -38,6 +39,21 @@ tasks:
     desc: "Tear down the k3d cluster and clean up kubeconfig"
     cmds:
       - task: cluster:delete
+
+  # ─── Docker readiness ────────────────────────────────────────────────────────
+
+  docker:wait:
+    desc: "Wait until the Docker daemon (DinD) is ready"
+    cmds:
+      - |
+        echo "Waiting for Docker daemon to become ready..."
+        for i in $(seq 1 30); do
+          docker info > /dev/null 2>&1 && echo "Docker is ready." && exit 0
+          echo "  attempt $i/30 – retrying in 2s..."
+          sleep 2
+        done
+        echo "ERROR: Docker daemon did not become ready in time." >&2
+        exit 1
 
   # ─── Cluster management ──────────────────────────────────────────────────────
 
