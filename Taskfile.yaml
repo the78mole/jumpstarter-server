@@ -11,6 +11,7 @@ vars:
   NAMESPACE_TRAEFIK: traefik
   CERT_MANAGER_VERSION: v1.14.4
   TRAEFIK_CHART_VERSION: "26.1.0"
+  JUMPSTARTER_CHART_VERSION: "0.7.0"
   GRPC_ENDPOINT: "localhost:8082"
   REGISTRY_PORT: "5111"
 
@@ -117,18 +118,13 @@ tasks:
           --wait --timeout 5m
 
   install:jumpstarter:
-    desc: "Install Jumpstarter controller from upstream GitHub source"
+    desc: "Install Jumpstarter controller from OCI registry"
     cmds:
       - kubectl create namespace {{.NAMESPACE_CONTROLLER}} --dry-run=client -o yaml | kubectl apply -f -
       - |
-        # Clone (or reuse) the upstream chart – sparse-checkout keeps the download small.
-        if [ ! -d /tmp/js-chart/.git ]; then
-          git clone --depth=1 --filter=blob:none --sparse \
-            https://github.com/jumpstarter-dev/jumpstarter.git /tmp/js-chart
-          git -C /tmp/js-chart sparse-checkout set controller/deploy/helm
-        fi
-        helm upgrade --install jumpstarter /tmp/js-chart/controller/deploy/helm/jumpstarter \
+        helm upgrade --install jumpstarter oci://quay.io/jumpstarter-dev/helm/jumpstarter \
           --namespace {{.NAMESPACE_CONTROLLER}} \
+          --version {{.JUMPSTARTER_CHART_VERSION}} \
           --values helm/jumpstarter/values.yaml \
           --wait --timeout 5m
 
