@@ -104,6 +104,89 @@ task status
 
 ---
 
+## k9s — Kubernetes Terminal UI
+
+[k9s](https://k9scud.com) is pre-installed in the DevContainer and provides a
+real-time terminal dashboard for the k3d cluster.
+
+### Starting k9s
+
+```bash
+k9s
+```
+
+k9s opens directly in the `jumpstarter` namespace (configured by default).
+
+### Essential Keybindings
+
+| Key / Command       | Action                                      |
+|---------------------|---------------------------------------------|
+| `0`                 | Show **all namespaces**                     |
+| `1..9`              | Switch to namespace from favorites list     |
+| `:ns`               | Navigate to namespace list                  |
+| `:pods` / `:po`     | List pods (current namespace)               |
+| `:deployments`      | List deployments                            |
+| `:services`         | List services                               |
+| `:ingresses`        | List Ingress resources                      |
+| `:nodes`            | List cluster nodes                          |
+| `:events`           | Show recent cluster events                  |
+| `l`                 | **Stream logs** of selected pod             |
+| `s`                 | Open a **shell** inside selected pod        |
+| `d`                 | **Describe** selected resource              |
+| `e`                 | **Edit** selected resource (opens `$EDITOR`)|
+| `ctrl+d`            | Delete selected resource (with confirmation)|
+| `ctrl+k`            | Kill (force-delete) selected resource       |
+| `/`                 | Filter list by text                         |
+| `Esc`               | Clear filter / go back                      |
+| `?`                 | Show all keybindings                        |
+| `q`                 | Quit k9s                                    |
+
+### Useful Aliases / Views
+
+```bash
+# Jump directly into a specific resource view on startup
+k9s --namespace jumpstarter          # start in jumpstarter namespace
+k9s -c pods                          # start in pod list
+k9s -c deployments                   # start in deployment list
+
+# In k9s, type these to navigate quickly:
+:pods          # pods
+:svc           # services
+:ing           # ingresses
+:cm            # ConfigMaps
+:secrets       # Secrets (values hidden by default)
+:crd           # CustomResourceDefinitions
+:events        # live event stream – useful for debugging
+```
+
+### Typical Debugging Workflow
+
+1. Run `k9s` and the jumpstarter namespace opens automatically.
+2. Press `l` on a pod to **stream logs** in real time.
+3. Press `s` on a running pod to **exec into a shell**.
+4. Press `:events` to watch **cluster events** and spot errors.
+5. Press `0` to **switch to all namespaces** and check cert-manager / traefik.
+
+### Configuration
+
+k9s stores its configuration in `~/.config/k9s/`. The DevContainer ships with
+a pre-configured `config.yaml` that:
+
+- Sets `jumpstarter` as the active startup namespace
+- Adds `cert-manager`, `traefik`, `default`, and `all` as favorites
+  (accessible with number keys `1`–`5`)
+- Sets a 2-second refresh interval
+
+To customise the look, copy one of the built-in skins:
+
+```bash
+# List available skins
+ls $(k9s info | grep "Config" | awk '{print $2}' | xargs dirname)/skins/
+# Or browse community skins at: https://github.com/derailed/k9s/tree/master/skins
+```
+
+---
+
 ## Repository Structure
 
 ```
