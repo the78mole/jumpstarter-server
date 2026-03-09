@@ -1,53 +1,23 @@
 # Helm values for Jumpstarter Controller
-# Chart source: https://github.com/jumpstarter-dev/helm-charts
-# Default gRPC port: 8082
+# Chart source: https://github.com/jumpstarter-dev/jumpstarter
+#               controller/deploy/helm/jumpstarter
 
-controller:
-  image:
-    repository: quay.io/jumpstarter-dev/jumpstarter-controller
-    tag: ""          # Defaults to chart appVersion
-    pullPolicy: IfNotPresent
+global:
+  # Used to construct gRPC endpoint FQDNs; localhost is sufficient for a
+  # single-node k3d development cluster.
+  baseDomain: "localhost"
+  metrics:
+    enabled: false
 
-  replicaCount: 1
-
-  service:
-    type: ClusterIP
-    grpcPort: 8082
-
-  resources:
-    requests:
-      cpu: "100m"
-      memory: "128Mi"
-    limits:
-      cpu: "500m"
-      memory: "256Mi"
-
-router:
-  image:
-    repository: quay.io/jumpstarter-dev/jumpstarter-router
-    tag: ""
-    pullPolicy: IfNotPresent
-
-  replicaCount: 1
-
-  service:
-    type: ClusterIP
-    grpcPort: 8083
-
-  resources:
-    requests:
-      cpu: "50m"
-      memory: "64Mi"
-    limits:
-      cpu: "200m"
-      memory: "128Mi"
-
-ingress:
-  enabled: true
-  className: "traefik"
-  annotations:
-    # Enable HTTP/2 (gRPC) passthrough on Traefik
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+jumpstarter-controller:
+  # Use NodePort so the controller gRPC is reachable directly, without
+  # requiring a full Ingress/TLS chain.  Port 30010/30011 are mapped by
+  # k3d via the 8083 hostPort and can also be reached on the cluster IP.
+  grpc:
+    nodeport:
+      enabled: true
+      port: 30010
+      routerPort: 30011
     traefik.ingress.kubernetes.io/router.tls: "true"
   hosts:
     - host: jumpstarter.local
