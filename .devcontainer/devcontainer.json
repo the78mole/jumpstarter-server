@@ -4,13 +4,12 @@
     "context": ".",
     "dockerfile": "Dockerfile"
   },
-  // Mount the host Docker socket so k3d can create containers (Docker-outside-of-Docker)
-  "mounts": [
-    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
-  ],
   "remoteUser": "vscode",
   "features": {
-    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+    // Docker-in-Docker: dockerd runs inside the container so k3d port bindings
+    // live in the container's own network namespace – no conflict with the
+    // Codespace port-forwarding infrastructure on the Docker host.
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "version": "latest",
       "enableNonRootDocker": "true",
       "moby": "true"

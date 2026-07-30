@@ -36,12 +36,11 @@ ports:
 options:
   k3s:
     extraArgs:
-      # Disable the default Traefik v1 so we can install Traefik v2 via Helm
+      # Disable the default Traefik v1 so we can install Traefik v2 via Helm.
+      # servicelb (klipper-lb) must stay enabled so that Traefik's
+      # service.type=LoadBalancer gets a node-local binding that k3d's nginx
+      # proxy can reach via the 8080/8082/8083 port mappings.
       - arg: "--disable=traefik"
-        nodeFilters:
-          - server:*
-      # Disable servicelb; we rely on k3d's load balancer
-      - arg: "--disable=servicelb"
         nodeFilters:
           - server:*
   kubeconfig:
